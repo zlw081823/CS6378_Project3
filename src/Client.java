@@ -23,7 +23,7 @@ public class Client {
 		
 		// Create a local file to keep track of message exchange information and time elapse
 		createFile(clientID);
-		System.out.println("Log file <client" + clientID + "> is created!");
+		//System.out.println("Log file <client" + clientID + "> is created!");
 		
 		// Initiate the clients		
 		setupInitiator(clientID);	// 1 - 7

@@ -33,7 +33,7 @@ public class Server {
 			public void run() {
 				while (listeningFlg);
 				try {
-					Thread.sleep(1000);
+					Thread.sleep(1500);
 					shutdownFlg = true;
 					new Socket("dc" + (serverID + 22) + ".utdallas.edu", 6666).close();;
 				} catch (InterruptedException e) {

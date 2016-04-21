@@ -5,14 +5,17 @@ import java.io.ObjectOutputStream;
 import java.net.Socket;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class ServerHandler {
 	private volatile BlockingQueue<Message> commitReqQ = new ArrayBlockingQueue<>(10);
 	private volatile int[] agreeCnt = new int[7];	// worst case scenario, all 7 request on one server
 	private volatile int ackCnt = 0;	
 	private volatile int terminateCnt = 0;
+	//private Lock lock = new ReentrantLock();
 
-	public void requestHandler(int serverID, Message msgIn, Socket recvSocket) {
+	public synchronized void requestHandler(int serverID, Message msgIn, Socket recvSocket) {
 		if (msgIn.getIsFromServer()) {
 			// Message from server
 			if (msgIn.getSeqNum() == 41) {
@@ -57,7 +60,7 @@ public class ServerHandler {
 		}
 	}
 	
-	public void agreedHandler(int serverID, Message msgIn) {
+	public synchronized void agreedHandler(int serverID, Message msgIn) {
 		agreeCnt[msgIn.getSenderID() - 1] ++;
 		if (agreeCnt[msgIn.getSenderID() - 1] == 2) {
 			agreeCnt[msgIn.getSenderID() - 1] = 0;
@@ -80,7 +83,7 @@ public class ServerHandler {
 		}
 	}
 	
-	public void commit_requestHandler(int serverID, Message msgIn) {
+	public synchronized void commit_requestHandler(int serverID, Message msgIn) {
 		// Only leader will receive this message!
 		if(commitReqQ.isEmpty()) {
 			commitReqQ.add(msgIn);
@@ -94,14 +97,14 @@ public class ServerHandler {
 		}
 	}
 	
-	public void commitHandler(Message msgIn) {
+	public synchronized void commitHandler(Message msgIn) {
 		// Only non-leader will receive this message!
 		write1Line2File("<" + msgIn.getSenderID() + ", " + msgIn.getSeqNum() + ", " + msgIn.getSenderHostName() + ">");
 		sendMsg2Server(msgIn, "ack", "dc23.utdallas.edu");
 		System.out.println("Committed the WRITE... Send ACK to leader...");		
 	}
 	
-	public void ackHandler(int serverID, Message msgIn) throws InterruptedException {
+	public synchronized void ackHandler(int serverID, Message msgIn) throws InterruptedException {
 		// Only leader will receive this message
 		ackCnt ++;
 		if (ackCnt == 2) {
