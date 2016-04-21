@@ -28,7 +28,7 @@ public class ServerHandler {
 				// Regular process
 				String targetHostname = recvSocket.getInetAddress().getHostName();	// Should work
 				sendMsg2Server(msgIn, "agreed", targetHostname);
-				System.out.println("Receive message from server... Send AGREED back...");
+				System.out.println("Receive REQUEST from server... Send AGREED back...");
 			}
 		} else {
 			// Message from client
@@ -52,7 +52,7 @@ public class ServerHandler {
 				// Regular process
 				msgIn.setIsFromServer();
 				forwardMsg2AllServers(msgIn, serverID);
-				System.out.println("Receive message from client... Forward it to server...");			
+				System.out.println("Receive REQUEST from client... Forward it to other servers...");			
 			}
 		}
 	}
@@ -65,7 +65,7 @@ public class ServerHandler {
 				// Just like processing a new coming COMMIT_REQUEST
 				if(commitReqQ.isEmpty()) {
 					commitReqQ.add(msgIn);
-					write1Line2File(msgIn.getSenderID(), "<" + msgIn.getSenderID() + ", " + msgIn.getSeqNum() + ", " + msgIn.getSenderHostName() + ">");
+					write1Line2File("<" + msgIn.getSenderID() + ", " + msgIn.getSeqNum() + ", " + msgIn.getSenderHostName() + ">");
 					msgIn.setMsgType("commit");
 					forwardMsg2AllServers(msgIn, serverID);
 					System.out.println("Leader received a client's REQ and committed the WRITE... Forward COMMIT to other servers...");
@@ -84,7 +84,7 @@ public class ServerHandler {
 		// Only leader will receive this message!
 		if(commitReqQ.isEmpty()) {
 			commitReqQ.add(msgIn);
-			write1Line2File(msgIn.getSenderID(), "<" + msgIn.getSenderID() + ", " + msgIn.getSeqNum() + ", " + msgIn.getSenderHostName() + ">");
+			write1Line2File("<" + msgIn.getSenderID() + ", " + msgIn.getSeqNum() + ", " + msgIn.getSenderHostName() + ">");
 			msgIn.setMsgType("commit");
 			forwardMsg2AllServers(msgIn, serverID);
 			System.out.println("Leader committed the WRITE... Forward COMMIT to other servers...");
@@ -96,7 +96,7 @@ public class ServerHandler {
 	
 	public void commitHandler(Message msgIn) {
 		// Only non-leader will receive this message!
-		write1Line2File(msgIn.getSenderID(), "<" + msgIn.getSenderID() + ", " + msgIn.getSeqNum() + ", " + msgIn.getSenderHostName() + ">");
+		write1Line2File("<" + msgIn.getSenderID() + ", " + msgIn.getSeqNum() + ", " + msgIn.getSenderHostName() + ">");
 		sendMsg2Server(msgIn, "ack", "dc23.utdallas.edu");
 		System.out.println("Committed the WRITE... Send ACK to leader...");		
 	}
@@ -114,7 +114,7 @@ public class ServerHandler {
 				// wait for new COMMIT_REQUESTS / REQUESTS
 				// Do nothing
 			} else {
-				write1Line2File(msgIn.getSenderID(), "<" + msgIn.getSenderID() + ", " + msgIn.getSeqNum() + ", " + msgIn.getSenderHostName() + ">");
+				write1Line2File("<" + msgIn.getSenderID() + ", " + msgIn.getSeqNum() + ", " + msgIn.getSenderHostName() + ">");
 				Message msg = commitReqQ.peek();
 				msg.setMsgType("commit");
 				forwardMsg2AllServers(msg, serverID);
@@ -175,8 +175,8 @@ public class ServerHandler {
 		}
 	}
 	
-	public static void write1Line2File(int clientID, String log) {
-		File file = new File("/tmp/user/java/client" + clientID);
+	public static void write1Line2File(String log) {
+		File file = new File("/tmp/user/java/server");
 		
 		if (file.exists()) {
 			try {

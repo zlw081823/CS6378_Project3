@@ -23,7 +23,7 @@ public class Server {
 	
 		// Create a log file
 		createFile();
-		System.out.println("Log file <server> is created!");		
+		//System.out.println("Log file <server> is created!");		
 		
 		// Create a handler for all incoming messages
 		ServerHandler handler = new ServerHandler();
@@ -60,7 +60,7 @@ public class Server {
 							ObjectInputStream in = new ObjectInputStream(clientSocket.getInputStream());
 							Message msgIn = (Message) in.readObject();
 							if(msgIn.getIsFromServer()) {
-								System.out.println("Receive a message: <" + msgIn.getMsgType() + ">, from server <" + msgIn.getSenderID() + ">");													
+								System.out.println("Receive a message: <" + msgIn.getMsgType() + ">, from server <" + clientSocket.getInetAddress().getHostName() + ">");													
 							} else {
 								System.out.println("Receive a message: <" + msgIn.getMsgType() + ">, from client <" + msgIn.getSenderID() + ">");						
 							}
