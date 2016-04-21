@@ -54,9 +54,12 @@ public class Client {
 				Socket recvSocket = listenvSocket.accept();
 				ObjectInputStream in = new ObjectInputStream(recvSocket.getInputStream());
 				Message msgIn = (Message) in.readObject();
-				if (msgIn.getMsgType().equals("ack")) {	// Including the 41st ack - as terminate message
+				if (msgIn.getMsgType().equals("ack")) {	
 					System.out.println("Receve <ACK> from server[" + serverID + "]");
 					seqNum ++;
+				} else if (msgIn.getMsgType().equals("terminate")) {
+					System.out.println("Receive TERMINATE from server... Shutdown...");
+					break;
 				} else {
 					System.out.println("Receive Wrong Massage from Server[" + serverID + "]: <" + msgIn.getMsgType() + ">!!");
 					break;

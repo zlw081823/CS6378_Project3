@@ -14,12 +14,46 @@ public class ServerHandler {
 
 	public void requestHandler(int serverID, Message msgIn, Socket recvSocket) {
 		if (msgIn.getIsFromServer()) {
-			String targetHostname = recvSocket.getInetAddress().getHostName();	// Should work
-			sendMsg2Server(msgIn, "agreed", targetHostname);
-			System.out.println("Receive message from server... Send AGREED back...");
+			// Message from server
+			if (msgIn.getSeqNum() == 41) {
+				// Only LEADER will receive this message from server
+				terminateCnt ++;
+				if (terminateCnt == 7) {
+					msgIn.setMsgType("terminate");
+					forwardMsg2AllServers(msgIn, serverID);
+					forwardMsg2AllClients(msgIn);
+					sendMsg2Server(msgIn, "terminate", "dc23.utdallas.edu");
+				}
+			} else {
+				// Regular process
+				String targetHostname = recvSocket.getInetAddress().getHostName();	// Should work
+				sendMsg2Server(msgIn, "agreed", targetHostname);
+				System.out.println("Receive message from server... Send AGREED back...");
+			}
 		} else {
-			forwardMsg2All(msgIn, serverID);
-			System.out.println("Receive message from client... Forward it to server...");
+			// Message from client
+			if (msgIn.getSeqNum() == 41) {
+				if (serverID == 1) {
+					// LEADER
+					terminateCnt ++;
+					if (terminateCnt == 7) {
+						msgIn.setMsgType("terminate");
+						msgIn.setIsFromServer();
+						forwardMsg2AllServers(msgIn, serverID);
+						forwardMsg2AllClients(msgIn);
+						sendMsg2Server(msgIn, "terminate", "dc23.utdallas.edu");
+					}
+				} else {
+					// Not LEADER - send this terminate message to LEADER
+					msgIn.setIsFromServer();
+					sendMsg2Server(msgIn, "request", "dc23.utdallas.edu");					
+				}
+			} else {
+				// Regular process
+				msgIn.setIsFromServer();
+				forwardMsg2AllServers(msgIn, serverID);
+				System.out.println("Receive message from client... Forward it to server...");			
+			}
 		}
 	}
 	
@@ -29,58 +63,35 @@ public class ServerHandler {
 			agreeCnt[msgIn.getSenderID() - 1] = 0;
 			if (serverID == 1) {	// Leader
 				// Just like processing a new coming COMMIT_REQUEST
-				if(msgIn.getSeqNum() == 41) {
-					// Receive terminate request message
-					terminateCnt ++;
-					if (terminateCnt == 7) {
-						msgIn.setMsgType("terminate");
-						forwardMsg2All(msgIn, serverID);
-						forwardMsg2Clients(msgIn);
-					}
+				if(commitReqQ.isEmpty()) {
+					commitReqQ.add(msgIn);
+					write1Line2File(msgIn.getSenderID(), "<" + msgIn.getSenderID() + ", " + msgIn.getSeqNum() + ", " + msgIn.getSenderHostName() + ">");
+					msgIn.setMsgType("commit");
+					forwardMsg2AllServers(msgIn, serverID);
+					System.out.println("Leader received a client's REQ and committed the WRITE... Forward COMMIT to other servers...");
 				} else {
-					// Receive non-terminate request message
-					if(commitReqQ.isEmpty()) {
-						commitReqQ.add(msgIn);
-						write1Line2File(msgIn.getSenderID(), "<" + msgIn.getSenderID() + ", " + msgIn.getSeqNum() + ", " + msgIn.getSenderHostName() + ">");
-						msgIn.setMsgType("commit");
-						forwardMsg2All(msgIn, serverID);
-						System.out.println("Leader received a client's REQ and committed the WRITE... Forward COMMIT to other servers...");
-					} else {
-						commitReqQ.add(msgIn);
-						System.out.println("Previous COMMIT_REQ hasn't finish... Wait in the queue...");
-					}				
-				}			
+					commitReqQ.add(msgIn);
+					System.out.println("Previous COMMIT_REQ hasn't finish... Wait in the queue...");
+				}
 			} else {
 				sendMsg2Server(msgIn, "commit_request", "dc23.utdallas.edu");
 				System.out.println("Send COMMIT_REQUEST to leader!");						
 			}
-		}	
+		}
 	}
 	
 	public void commit_requestHandler(int serverID, Message msgIn) {
 		// Only leader will receive this message!
-		
-		if(msgIn.getSeqNum() == 41) {
-			// Receive terminate request message
-			terminateCnt ++;
-			if (terminateCnt == 7) {
-				msgIn.setMsgType("terminate");
-				forwardMsg2All(msgIn, serverID);
-				forwardMsg2Clients(msgIn);
-			}
+		if(commitReqQ.isEmpty()) {
+			commitReqQ.add(msgIn);
+			write1Line2File(msgIn.getSenderID(), "<" + msgIn.getSenderID() + ", " + msgIn.getSeqNum() + ", " + msgIn.getSenderHostName() + ">");
+			msgIn.setMsgType("commit");
+			forwardMsg2AllServers(msgIn, serverID);
+			System.out.println("Leader committed the WRITE... Forward COMMIT to other servers...");
 		} else {
-			// Receive non-terminate request message
-			if(commitReqQ.isEmpty()) {
-				commitReqQ.add(msgIn);
-				write1Line2File(msgIn.getSenderID(), "<" + msgIn.getSenderID() + ", " + msgIn.getSeqNum() + ", " + msgIn.getSenderHostName() + ">");
-				msgIn.setMsgType("commit");
-				forwardMsg2All(msgIn, serverID);
-				System.out.println("Leader committed the WRITE... Forward COMMIT to other servers...");
-			} else {
-				commitReqQ.add(msgIn);
-				System.out.println("Previous COMMIT_REQ hasn't finish... Wait in the queue...");
-			}				
-		}	
+			commitReqQ.add(msgIn);
+			System.out.println("Previous COMMIT_REQ hasn't finish... Wait in the queue...");
+		}
 	}
 	
 	public void commitHandler(Message msgIn) {
@@ -100,18 +111,19 @@ public class ServerHandler {
 			System.out.println("Received all ACKs... Send ACK to client...");
 			//process next COMMIT_REQUEST
 			if (commitReqQ.isEmpty()){
-				// wait for new COMMIT_REQUESTS / REQUESTS?
+				// wait for new COMMIT_REQUESTS / REQUESTS
+				// Do nothing
 			} else {
 				write1Line2File(msgIn.getSenderID(), "<" + msgIn.getSenderID() + ", " + msgIn.getSeqNum() + ", " + msgIn.getSenderHostName() + ">");
 				Message msg = commitReqQ.peek();
 				msg.setMsgType("commit");
-				forwardMsg2All(msg, serverID);
+				forwardMsg2AllServers(msg, serverID);
 				System.out.println("Leader retrieved a new client REQ and committed the WRITE... Forward COMMIT to other servers...");
 			}
 		}
 	}
 	
-	public static void forwardMsg2All (Message msgIn, int serverID) {	
+	public static void forwardMsg2AllServers (Message msgIn, int serverID) {	
 		
 		for (int sID = 1; sID <= 3; sID ++) {
 			if (sID != serverID) {
@@ -131,7 +143,7 @@ public class ServerHandler {
 		}
 	}
 	
-	public static void forwardMsg2Clients (Message msg) {	
+	public static void forwardMsg2AllClients (Message msg) {	
 		
 		for (int sID = 1; sID <= 7; sID ++) {
 			try {
