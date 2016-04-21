@@ -117,8 +117,8 @@ public class ServerHandler {
 				// wait for new COMMIT_REQUESTS / REQUESTS
 				// Do nothing
 			} else {
-				write1Line2File("<" + msgIn.getSenderID() + ", " + msgIn.getSeqNum() + ", " + msgIn.getSenderHostName() + ">");
 				Message msg = commitReqQ.peek();
+				write1Line2File("<" + msg.getSenderID() + ", " + msg.getSeqNum() + ", " + msg.getSenderHostName() + ">");
 				msg.setMsgType("commit");
 				forwardMsg2AllServers(msg, serverID);
 				System.out.println("Leader retrieved a new client REQ and committed the WRITE... Forward COMMIT to other servers...");
