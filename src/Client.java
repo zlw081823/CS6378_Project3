@@ -30,6 +30,7 @@ public class Client {
 		System.out.println("Setup finished...");	
 		
 		// Send request and receive ack
+		long timeStamp = 0;
 		int seqNum = 1;
 		Random r = new Random();
 		while (seqNum <= 41) {
@@ -38,6 +39,7 @@ public class Client {
 			
 			// send request to server
 			try {
+				timeStamp = System.currentTimeMillis();
 				Socket sendSocket = new Socket("dc" + (serverID + 22) + ".utdallas.edu", 6666);
 				ObjectOutputStream out = new ObjectOutputStream(sendSocket.getOutputStream());
 				Message msgOut = new Message(clientID, clientHostname, seqNum, "request");
@@ -64,6 +66,9 @@ public class Client {
 					System.out.println("Receive Wrong Massage from Server[" + serverID + "]: <" + msgIn.getMsgType() + ">!!");
 					break;
 				}
+				int[] msgCnt = msgIn.getMsgCnt();
+				write1Line2File(clientID, "Request processing time: <" + (System.currentTimeMillis() - timeStamp) + "ms>, #REQUEST = <" + msgCnt[0] + ">, #AGREED = <" + 
+								msgCnt[1] + ">, #COMMIT_REQUEST = <" + msgCnt[2] + ">, #COMMIT = <" + msgCnt[3] + ">, #ACK = <" + msgCnt[4] + ">, #TERMINATE = <" + msgCnt[5] + ">");
 				in.close();
 				recvSocket.close();
 				listenvSocket.close();

@@ -67,6 +67,8 @@ public class Server {
 							in.close();
 							clientSocket.close();
 							
+							handler.countMsg(msgIn);	// Count number of received messages
+							
 							if(msgIn.getMsgType().equals("request")) {
 								handler.requestHandler(serverID, msgIn, clientSocket);
 							} else if (msgIn.getMsgType().equals("agreed")) {

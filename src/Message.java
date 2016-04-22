@@ -12,6 +12,7 @@ public class Message implements Serializable{
 	private int seqNum;
 	private String msgType;
 	private boolean isFromServer;
+	private int[] msgCnt = new int[6]; 
 	
 	public Message(int senderID, String senderHostName, int seqNum, String msgType) {
 		this.senderID = senderID;
@@ -52,5 +53,13 @@ public class Message implements Serializable{
 	
 	public boolean getIsFromServer () {
 		return isFromServer;
+	}
+	
+	public void setMsgCnt (int[] msgCnt) {
+		System.arraycopy(msgCnt, 0, this.msgCnt, 0, 6);
+	}
+	
+	public int[] getMsgCnt () {
+		return msgCnt;
 	}
 }

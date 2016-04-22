@@ -5,14 +5,13 @@ import java.io.ObjectOutputStream;
 import java.net.Socket;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
 
 public class ServerHandler {
 	private volatile BlockingQueue<Message> commitReqQ = new ArrayBlockingQueue<>(10);
 	private volatile int[] agreeCnt = new int[7];	// worst case scenario, all 7 request on one server
 	private volatile int ackCnt = 0;	
 	private volatile int terminateCnt = 0;
+	private volatile int[] msgCnt = new int[6];
 	//private Lock lock = new ReentrantLock();
 
 	public synchronized void requestHandler(int serverID, Message msgIn, Socket recvSocket) {
@@ -31,6 +30,7 @@ public class ServerHandler {
 				// Regular process
 				String targetHostname = recvSocket.getInetAddress().getHostName();	// Should work
 				sendMsg2Server(msgIn, "agreed", targetHostname);
+				//this.countMsg(msgIn);	// this.method VS. static method??
 				System.out.println("Receive REQUEST from server... Send AGREED back...");
 			}
 		} else {
@@ -110,7 +110,10 @@ public class ServerHandler {
 		if (ackCnt == 2) {
 			ackCnt = 0;
 			commitReqQ.take();
-			sendMsg2Server(msgIn, "ack", msgIn.getSenderHostName());
+			msgIn.setMsgCnt(msgCnt);
+			for (int i  = 0; i < msgCnt.length; i ++)
+				msgCnt[i] = 0;	//Clear the count
+			sendMsg2Server(msgIn, "ack", msgIn.getSenderHostName());	// Method name is quite confusing, since the msg is sent to client
 			System.out.println("Received all ACKs... Send ACK to client...");
 			//process next COMMIT_REQUEST
 			if (commitReqQ.isEmpty()){
@@ -126,7 +129,7 @@ public class ServerHandler {
 		}
 	}
 	
-	public static void forwardMsg2AllServers (Message msgIn, int serverID) {	
+	public void forwardMsg2AllServers (Message msgIn, int serverID) {	
 		
 		for (int sID = 1; sID <= 3; sID ++) {
 			if (sID != serverID) {
@@ -135,6 +138,7 @@ public class ServerHandler {
 					ObjectOutputStream out = new ObjectOutputStream(s2sSocket.getOutputStream());					
 					Message msgS2SOut = msgIn;
 					msgS2SOut.setIsFromServer();	// Mark the msg(basically REQUEST) is sent from server
+					this.countMsg(msgS2SOut);
 					out.writeObject(msgS2SOut);			
 					out.close();
 					s2sSocket.close();
@@ -146,14 +150,15 @@ public class ServerHandler {
 		}
 	}
 	
-	public static void forwardMsg2AllClients (Message msg) {	
+	public void forwardMsg2AllClients (Message msg) {	
 		
 		for (int sID = 1; sID <= 7; sID ++) {
 			try {
 				Socket s2sSocket = new Socket("dc" + (sID + 25) + ".utdallas.edu", 6666);
 				ObjectOutputStream out = new ObjectOutputStream(s2sSocket.getOutputStream());					
 				Message msgS2SOut = msg;
-				msgS2SOut.setIsFromServer();	
+				msgS2SOut.setIsFromServer();
+				this.countMsg(msgS2SOut);
 				out.writeObject(msgS2SOut);			
 				out.close();
 				s2sSocket.close();
@@ -164,12 +169,13 @@ public class ServerHandler {
 		}
 	}
 	
-	public static void sendMsg2Server (Message msgIn, String msgType, String targetHostname) {
+	public void sendMsg2Server (Message msgIn, String msgType, String targetHostname) {
 		try {
 			Socket s2sSocket = new Socket(targetHostname, 6666);
 			ObjectOutputStream out = new ObjectOutputStream(s2sSocket.getOutputStream());					
 			Message msgOut = msgIn;
 			msgIn.setMsgType(msgType);	// Change the msgType, but maintain the original request info
+			this.countMsg(msgOut);
 			out.writeObject(msgOut);			
 			out.close();
 			s2sSocket.close();
@@ -178,7 +184,7 @@ public class ServerHandler {
 		}
 	}
 	
-	public static void write1Line2File(String log) {
+	public void write1Line2File(String log) {
 		File file = new File("/tmp/user/java/server");
 		
 		if (file.exists()) {
@@ -192,5 +198,21 @@ public class ServerHandler {
 				System.err.println("Cannot open the file writer!");
 			}
 		}	
+	}
+	
+	public void countMsg (Message msg) {
+		if (msg.getMsgType().equals("request")) {
+			this.msgCnt[0] ++;
+		} else if (msg.getMsgType().equals("agreed")) {
+			this.msgCnt[1] ++;
+		} else if (msg.getMsgType().equals("commit_request")) {
+			this.msgCnt[2] ++;
+		} else if (msg.getMsgType().equals("commit")) {
+			this.msgCnt[3] ++;
+		} else if (msg.getMsgType().equals("ack")) {
+			this.msgCnt[4] ++;
+		} else if (msg.getMsgType().equals("terminate")) {
+			this.msgCnt[5] ++;
+		}  
 	}
 }
